@@ -18,7 +18,7 @@
 ### API for tables
 - GET:
   - `GET /tables`
-    ```json
+    ```javascript
     response: {
       "status": 200,
       "data": {
@@ -38,7 +38,7 @@
     }
     ```
   - `GET /tables/<table_name>`
-    ```json
+    ```javascript
     response: {
       "status": 200,
       "data": {
@@ -65,7 +65,7 @@
     ```
 - POST:
   - `POST /tables/<table_name>`
-    ```json
+    ```javascript
     request: {
       "columns": [
         [
@@ -90,11 +90,11 @@
     ```
   - example:
     ```bash
-    curl -X POST -H 'Content-Type:application/json' -d '{"columns":[["id","int",{"primary_key":true,"autoincrement":true}],["user","str"]]}' http://localhost:5000/tables/hoge
+    curl -X POST -H 'Content-Type:application/javascript' -d '{"columns":[["id","int",{"primary_key":true,"autoincrement":true}],["user","str"]]}' http://localhost:5000/tables/hoge
     ```
 - DELETE:
   - `DELETE /tables`
-    ```json
+    ```javascript
     response: {
       "status": 200,
       "data": {
@@ -103,7 +103,7 @@
     }
     ```
   - `DELETE /tables/<table_name>`
-    ```json
+    ```javascript
     response: {
       "status": 200,
       "data": {
