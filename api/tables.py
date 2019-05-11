@@ -21,6 +21,8 @@ def define_tables_api(app, route):
       'primary_key': c.primary_key
     } for c in table.columns]
 
+  # --- tables REST API --- #
+
   @app.route(route, methods=['GET'])
   def get_tables():
     ''' table列挙 '''

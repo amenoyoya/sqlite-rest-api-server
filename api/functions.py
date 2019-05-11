@@ -3,7 +3,6 @@ functions for this module
 '''
 
 from sqlalchemy import create_engine, MetaData, Integer, String, Text, Float
-from sqlalchemy.orm import sessionmaker
 from flask import g, jsonify
 
 class Database:
@@ -16,13 +15,9 @@ class Database:
   def __init__(self, db_name):
     self.engine = create_engine('sqlite:///' + db_name)
     self.meta = MetaData(self.engine, reflect=True)
-    self.Session = sessionmaker(bind=self.engine)
 
   def connect(self):
     return self.engine.connect()
-
-  def make_session(self):
-    return self.Session()
 
 def jres(status_code, content):
   ''' ステータスコード付きでJsonレスポンス作成 '''
