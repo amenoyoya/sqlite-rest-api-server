@@ -22,7 +22,7 @@
     response: {
       "status": 200,
       "data": {
-        "tables": {
+        {
           "<table_name>": [
             {
               "name": "<column_name>",
@@ -41,17 +41,15 @@
     ```javascript
     response: {
       "status": 200,
-      "data": {
-        "table": [
-          {
-            "name": "<column_name>",
-            "type": "<column_type>",
-            "nullable": true/false,
-            "primary_key": true/false
-          },
-          ...
-        ]
-      }
+      "data": [
+        {
+          "name": "<column_name>",
+          "type": "<column_type>",
+          "nullable": true/false,
+          "primary_key": true/false
+        },
+        ...
+      ]
     } or {
       "status": 400,
       "data": {
@@ -119,8 +117,8 @@
 ---
 
 ### API for rows
-- GET, PUT, DELETE:
-  - selector:
+- GET:
+  - `GET /tables/<table_name>/rows`
     ```javascript
     request: {
       "select": [ //@optional
@@ -139,18 +137,12 @@
       ],
       "limit": 0～, // @optional
     }
-    ```
-- GET:
-  - `GET /tables/<table_name>/rows`
-    ```javascript
     response: {
       "status": 200,
-      "data": {
-        "values": [
-          {"<column_name>": column_value, ...},
-          ...
-        ]
-      }
+      "data": [
+        {"<column_name>": column_value, ...},
+        ...
+      ]
     } or {
       "status": 400,
       "data": {
@@ -188,7 +180,7 @@
   - `PUT /tables/<table_name>/rows`
     ```javascript
     request: {
-      @selector,
+      "where": @optional where::RPN,
       "values": {"<column_value>": column_value, ...}
     }
     response: {
@@ -208,7 +200,7 @@
   - `DELETE /tables/<table_name>/rows`
     ```javascript
     request: {
-      @selector
+      "where": @optional where::RPN,
     }
     response: {
       "status": 200 or 400,
