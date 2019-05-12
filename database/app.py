@@ -8,7 +8,7 @@ DATABASE = os.path.join(os.path.dirname(__file__), 'database.sqlite3')
 # Flaskアプリケーション
 app = Flask(__name__)
 app.config.from_object(__name__)
-app.config['firstrun'] = True
+app.config['migrated'] = False # migration実行フラグ
 
 def jres(status_code, content):
   ''' ステータスコード付きでJsonレスポンス作成 '''
@@ -16,35 +16,39 @@ def jres(status_code, content):
   res.status_code = status_code
   return res
 
+def migrate(db, migration):
+  ''' マイグレーション用JSONファイルからデータベース構築 '''
+  if not os.path.exists(migration):
+    return False
+  with open(migration, 'rb') as f:
+    data = json.load(f)
+  config = data.get('config')
+  tables = data.get('tables')
+  values = data.get('values')
+  if config and config.get('recreate'):
+    # recreateフラグが立っているならテーブルを削除
+    db.drop_tables()
+  # table構築
+  if not isinstance(tables, dict):
+    return False
+  for table, columns in tables.items():
+    if db.is_table_exists(table):
+      continue
+    # 存在しないtableを構築し、データ流し込み
+    if db.create_table(table, columns) == False:
+      return False
+    rows = values.get(table) if isinstance(values, dict) else None
+    if rows and db.insert_rows(table, rows) == False:
+      return False
+  return True
+
 def get_db():
   ''' Databaseのconnectionを取得 '''
   if not hasattr(g, 'databse'):
-    db = Database(DATABASE)
-    g.database = db
-    if not app.config['firstrun']:
-      return g.database
-    app.config['firstrun'] = False
-    # migration.json からデータベース構築
-    migration = os.path.join(os.path.dirname(__file__), 'migration.json')
-    if os.path.exists(migration):
-      with open(migration, 'rb') as f:
-        data = json.load(f)
-      config = data.get('config')
-      tables = data.get('tables')
-      values = data.get('values')
-      if config and config.get('recreate'):
-        # recreateフラグが立っているならテーブルを削除
-        db.drop_tables()
-      # table構築
-      if isinstance(tables, dict):
-        for table, columns in tables.items():
-          if db.is_table_exists(table):
-            continue
-          # 存在しないtableを構築し、データ流し込み
-          db.create_table(table, columns)
-          rows = values.get(table) if isinstance(values, dict) else None
-          if rows:
-            db.insert_rows(table, rows)
+    g.database = Database(DATABASE)
+    # マイグレーションが実行されていない場合はmigrate
+    if not app.config['migrated'] and migrate(g.database, os.path.join(os.path.dirname(__file__), 'migration.json')):
+      app.config['migrated'] = True
   return g.database
 
 
