@@ -10,6 +10,17 @@
     ```bash
     $ pip install sqlalchemy
     ```
+  - websocket-server `0.4`
+    ```bash
+    $ pip install websocket-server
+
+    # latest version update
+    $ pip install --upgrade git+https://github.com/Pithikos/python-websocket-server
+    ```
+  - websocket-server `0.56.0`
+    ```bash
+    $ pip install websocket-client
+    ```
 
 ***
 

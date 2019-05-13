@@ -1,3 +1,5 @@
 /database.sqlite3
+/cookie
 
 __pycache__/
+database.sqlite3
