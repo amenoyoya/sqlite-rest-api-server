@@ -39,15 +39,15 @@ class WebsocketServer:
   # --- event methods --- #
   def on_client_connected(self, client, server):
     ''' 新規クライアントが接続したときのコールバック '''
-    logger.info('New client {}:{} has been connected.'.format(client['address'][0], client['address'][1]))
+    self.log('New client {}:{} has been connected.'.format(client['address'][0], client['address'][1]))
   
   def on_client_disconnected(self, client, server):
     ''' クライアントとの接続が終了したときのコールバック '''
-    logger.info('Client {}:{} has been disconnected.'.format(client['address'][0], client['address'][1]))
+    self.log('Client {}:{} has been disconnected.'.format(client['address'][0], client['address'][1]))
   
   def on_message_recieved(self, client, server, message):
     ''' クライアントからメッセージを受信したときのコールバック '''
-    logger.info('Message "{}" has been received from {}:{}'.format(message, client['address'][0], client['address'][1]))
+    self.log('Message "{}" has been received from {}:{}'.format(message, client['address'][0], client['address'][1]))
 
 
 class WebsocketClient:
@@ -67,11 +67,11 @@ class WebsocketClient:
     websocket.enableTrace(False)
     self.client = websocket.WebSocketApp(
       server_host,
-      on_message = self.on_message_recieved,
-      on_error = self.on_error,
-      on_close = self.on_disconnect
+      on_message = lambda ws, message: self.on_message_recieved(message),
+      on_error = lambda ws, error: self.on_error(error),
+      on_close = lambda ws: self.on_disconnect()
     )
-    self.client.on_open = self.on_connect
+    self.client.on_open = lambda ws: self.on_connect()
     self.client.run_forever()
   
   def close(self):
@@ -93,4 +93,19 @@ class WebsocketClient:
     return self.client.recv()
 
   # --- event methods (サーバーモードで動作する際に使用) --- #
+  def on_connect(self):
+    ''' Websocketサーバー接続時のコールバック '''
+    self.log('Connect')
+
+  def on_disconnect(self):
+    ''' Websocketサーバーから切断時のコールバック '''
+    self.log('Disconnect')
+
+  def on_message_recieved(self, message):
+    ''' Websocketサーバーからメッセージ受信時のコールバック '''
+    self.log('Received:{}'.format(message))
+
+  def on_error(self, error):
+    ''' エラー発生時のコールバック '''
+    self.log('Error:{}'.format(error))
   
