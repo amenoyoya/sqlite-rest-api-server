@@ -1,50 +1,50 @@
 {
-  "config": {
-    "recreate": true
-  },
-  "tables": {
-    "users": [
-      ["id", "int", {"primary_key": true, "autoincrement": true}],
-      ["user", "str"],
-      ["password", "str"]
-    ],
-    "articles": [
-      ["id", "int", {"primary_key": true, "autoincrement": true}],
-      ["user_id", "int"],
-      ["title", "str"],
-      ["content", "text"]
-    ],
-    "tags": [
-      ["id", "int", {"primary_key": true, "autoincrement": true}],
-      ["slug", "str"],
-      ["name", "str"]
-    ],
-    "articles_tags": [
-      ["id", "int", {"primary_key": true, "autoincrement": true}],
-      ["article_id", "int"],
-      ["tag_id", "int"]
-    ]
-  },
-  "values": {
-    "users": [
-      {"user": "admin", "password": "pass"},
-      {"user": "hoge", "password": "fuga"},
-      {"user": "user", "password": "1234"}
-    ],
-    "articles": [
-      {"user_id": 1, "title": "My first blog", "content": "## Section\n\nHello, world!"},
-      {"user_id": 2, "title": "ほげほげブログ", "content": "fugafuga\nふがふが"},
-      {"user_id": 3, "title": "タイトル", "content": "## 記事\n\n記事本文です。\n以上。"}
-    ],
-    "tags": [
-      {"slug": "unknown", "name": "未分類"},
-      {"slug": "blog", "name": "ブログ"}
-    ],
-    "articles_tags": [
-      {"article_id": 1, "tag_id": 1},
-      {"article_id": 1, "tag_id": 2},
-      {"article_id": 2, "tag_id": 1},
-      {"article_id": 3, "tag_id": 2}
-    ]
-  }
+	"config": {
+		"recreate": true
+	},
+	"tables": {
+		"users": [
+			["id", "int", {"primary_key": true, "autoincrement": true}],
+			["user", "str"],
+			["password", "str"]
+		],
+		"articles": [
+			["id", "int", {"primary_key": true, "autoincrement": true}],
+			["user_id", "int"],
+			["title", "str"],
+			["content", "text"]
+		],
+		"tags": [
+			["id", "int", {"primary_key": true, "autoincrement": true}],
+			["slug", "str"],
+			["name", "str"]
+		],
+		"articles_tags": [
+			["id", "int", {"primary_key": true, "autoincrement": true}],
+			["article_id", "int"],
+			["tag_id", "int"]
+		]
+	},
+	"values": {
+		"users": [
+			{"user": "admin", "password": "pass"},
+			{"user": "hoge", "password": "fuga"},
+			{"user": "user", "password": "1234"}
+		],
+		"articles": [
+			{"user_id": 1, "title": "My first blog", "content": "## Section\n\nHello, world!"},
+			{"user_id": 2, "title": "ほげほげブログ", "content": "fugafuga\nふがふが"},
+			{"user_id": 3, "title": "タイトル", "content": "## 記事\n\n記事本文です。\n以上。"}
+		],
+		"tags": [
+			{"slug": "unknown", "name": "未分類"},
+			{"slug": "blog", "name": "ブログ"}
+		],
+		"articles_tags": [
+			{"article_id": 1, "tag_id": 1},
+			{"article_id": 1, "tag_id": 2},
+			{"article_id": 2, "tag_id": 1},
+			{"article_id": 3, "tag_id": 2}
+		]
+	}
 }
