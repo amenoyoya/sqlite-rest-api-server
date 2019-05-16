@@ -46,3 +46,10 @@ see [database/README.md](./database/README.md)
     
     => response time: 1.28 s
     ```
+- Websocket通信
+    ```python
+    http通信: client => 'localhost:4000'
+    websocket通信: 'localhost:4000' => 'localhost:5000'
+    
+    => レスポンス受信できず、実験失敗
+    ```

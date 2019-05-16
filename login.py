@@ -1,5 +1,17 @@
 '''
 ログインAPIサーバー
+
+1. database/rest.py: Databaseサーバー(localhost:5000)を起動
+2. this file: ログインAPサーバー(localhost:4000)を起動
+3. curlコマンドでログイン
+    ```
+    $ curl -c cookie -d 'username=admin' http://localhost:4000/login
+    ```
+4. ログイン後にDatabaseサーバーからtables情報取得
+    ```
+    $ curl -b cookie http://localhost:4000
+    # => http://localhost:4000 => GET http://localhost:5000/tables
+    ```
 '''
 from flask import Flask, request, jsonify, session
 from urllib.request import Request, urlopen
@@ -22,13 +34,13 @@ def jres(status_code, content):
 # 認証処理デコレータ
 def require_login(func):
     def wrapper(*args, **kargs):
-    # セッションに username が保存されていればログイン済み
-    if session.get('username') is not None:
-        return func(*args, **kargs)
-    # ログインされていない場合はエラーレスポンスを返す
-    return jres(401, {
-        'message': 'Unauthorized'
-    })
+        # セッションに username が保存されていればログイン済み
+        if session.get('username') is not None:
+            return func(*args, **kargs)
+        # ログインされていない場合はエラーレスポンスを返す
+        return jres(401, {
+            'message': 'Unauthorized'
+        })
     return wrapper
 
 # ログイン処理

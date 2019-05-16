@@ -48,17 +48,17 @@ class DatabaseWebsocketServer(WebsocketServer):
         if message[:9] == 'tables://':
             data = json.loads(message[9:])
             if isinstance(data, dict):
-                self.send_message(self._switch_tables_api(data))
+                self.send_message(client, self._switch_tables_api(data))
             else:
-                self.send_message('invalid json data')
+                self.send_message(client, 'invalid json data')
         # rows API: rows://{json}
         ## json: {method: "GET|POST|PUT|DELETE", table: "target_table", ...}
         elif message[:7] == 'rows://':
             data = json.loads(message[7:])
             if isinstance(data, dict):
-                self.send_message(self._switch_rows_api(data))
+                self.send_message(client, self._switch_rows_api(data))
             else:
-                self.send_message('invalid json data')
+                self.send_message(client, 'invalid json data')
     
     def _switch_tables_api(self, data):
         ''' JSONデータから tables API 振り分け '''
