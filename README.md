@@ -21,6 +21,11 @@
         ```bash
         $ pip install websocket-client
         ```
+     - gevent `1.4.0`
+        - gevent-websocket `0.10.1`
+            ```bash
+            $ pip install gevent gevent-websocket
+            ```
 
 ***
 
