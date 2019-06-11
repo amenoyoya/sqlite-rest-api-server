@@ -2,32 +2,28 @@
 '''
 SQLite3 wrapping for REST API
 '''
-import sqlite3
-from inspect import signature
+import sqlite3, re
 
-def RPN(exp, op):
-    ''' 逆ポーランド記法を計算する関数
-    params:
-        exp list: 逆ポーランド記法プログラムの配列（el. [1, 2, '+'] => 1 + 2）
-        op dict: 演算子,変数の定義（el. {'+': (lambda x, y: x + y), 'ten': 10}）
-    '''
-    stack = []
-    for e in exp:
-        f = None if isinstance(e, list) else op.get(e)
-        if f is None:
-            # 演算子でも変数でもない場合はstack
-            stack.append(e)
-        elif callable(f):
-            # 演算子なら演算実行
-            argc = len(signature(f).parameters) # 関数の引数の数を取得
-            res = f(*stack[-argc:]) # stackの後ろから引数を取得し、関数実行
-            stack = stack[:-argc] # 引数分をstackから削除
-            if res is not None:
-                stack.append(res) # 関数の戻り値をstack
+class Variable:
+    ''' 変数名として使える文字列か判定するクラス '''
+    class NameError(Exception):
+        def __str__(self):
+            return 'Invalid character specified for variable name.'
+    
+    # 変数名にはアルファベット, 数字, アンダーバーのみ使用可能
+    pattern = re.compile('^[a-zA-Z0-9_]+$')
+    
+    def __init__(self, variable_name):
+        # '*'は許可
+        if variable_name == '*':
+            self.name = variable_name
         else:
-            # 変数の値をstack
-            stack.append(f)
-    return stack
+            if Variable.pattern.match(variable_name) is None:
+                raise Variable.NameError()
+            self.name = variable_name
+    
+    def __str__(self):
+        return self.name
 
 
 class SqlDB:
@@ -35,9 +31,6 @@ class SqlDB:
     types = {
         # Databse basic types
         'int': 'integer', 'str': 'varchar', 'text': 'text',  'num': 'number' 
-    }
-    sqltypes = {
-        'integer': 'int', 'varchar': 'str', 'text': 'text',  'number': 'num'
     }
 
     # --- private methods --- #
@@ -48,7 +41,6 @@ class SqlDB:
             {
                 'name': row['name'],
                 'type': row['type'],
-                'default': row['dflt_value'],
                 'nullable': row['notnull'] == 0,
                 'primary_key': row['pk'] == 1
             } for row in self.cursor.fetchall()
@@ -107,10 +99,9 @@ class SqlDB:
                 "name": column_name, "type": column_type, "nullable": True/False, "primary_key": True/False
             }
         '''
-        table = self.meta.tables.get(table_name)
-        if table is None:
-            return False
-        return _get_table_schema(table)
+        if self.is_table_exists(table_name):
+            return self._get_table_schema(table_name)
+        return False
 
     def create_table(self, table_name, columns):
         ''' table作成
@@ -121,9 +112,8 @@ class SqlDB:
                     column_name,
                     column_type, # "int" | "str" | "text" | "num"
                     { # @optional
-                        "primary_key": True/False,
-                        "nullable": True/False, 
-                        "autoincrement": True/False
+                        "primary_key": True/False, # integerでprimary_keyならautoincrementされる
+                        "nullable": True/False,
                     }
                 ],
                 ...
@@ -132,18 +122,27 @@ class SqlDB:
             if table already exists: False
             else: True
         '''
-        if table_name in self.meta.tables:
+        if self.is_table_exists(table_name):
             return False
-        columns = [
-            Column(column[0], Database.types[column[1]], **column[2] if len(column) > 2 else {})
-            for column in columns
-        ]
-        Table(table_name, self.meta, *columns).create()
+        cols = []
+        for column in columns:
+            opt = {
+                'nullable': '' if column[2].get('nullable') else ' not null',
+                'primary_key': ' primary key' if column[2].get('primary_key') else ''
+            } if len(column) > 2 else {
+                'nullable': '',
+                'primary_key': ''
+            }
+            cols += [str(Variable(column[0])) + ' ' + SqlDB.types[column[1]] + opt['nullable'] + opt['primary_key']]
+        self.cursor.execute('create table ' + str(Variable(table_name)) + ' (' + ','.join(cols) + ')')
+        self.tables += [table_name]
         return True
 
     def drop_tables(self):
         ''' table全削除 '''
-        self.meta.drop_all()
+        for table in self.tables:
+            self.cursor.execute('drop table ' + table)
+        self.tables = []
 
     def drop_table(self, table_name):
         ''' table削除
@@ -153,99 +152,8 @@ class SqlDB:
             if table not exists: False
             else: True
         '''
-        table = self.meta.tables.get(table_name)
-        if table is None:
+        if not self.is_table_exists(table_name):
             return False
-        table.drop()
+        self.cursor.execute('drop table ' + table_name)
+        self.tables.remove(table_name)
         return True
-
-    # --- methods for rows managiment --- #
-    def get_rows(self, table_name, conditions):
-        ''' table内のデータselect
-        params:
-            table_name (str): target table name
-            conditions (dict): {
-                "select": ["*" or column_name, ...],
-                "where": @where_rpn,
-                "order_by": [["asc"/"desc", column_name], ...],
-                "limit": 0 ~
-            }
-        returns:
-            if table not exists: False
-            else: list [
-                {column_name: column_value, ...},
-                ...
-            ]
-        '''
-        table = self.meta.tables.get(table_name)
-        if table is None:
-            return False
-        with self.connect() as con:
-            selects = conditions.get('select')
-            query = select(
-                [table] if selects is None \
-                else [table if s == '*' else table.columns[s] for s in selects]
-            )
-            result = con.execute(_build_query(query, table, conditions, True))
-            return [{key: val for key, val in row.items()} for row in result]
-
-    def insert_rows(self, table_name, values):
-        ''' tableにデータinsert
-        params:
-            table_name (str): target table name
-            values (list): [
-                {column_name: column_value, ...},
-                ...
-            ]
-        returns:
-            if table not exists: False
-            else: inserted row count (int)
-        '''
-        table = self.meta.tables.get(table_name)
-        if table is None:
-            return False
-        with self.connect() as con:
-            result = con.execute(insert(table, values=values))
-            return result.rowcount
-
-    def update_rows(self, table_name, conditions):
-        ''' tableのデータをupdate
-        params:
-            table_name (str): target table name
-            conditions (dict): {
-                "values": {column_name: column_value, ...},
-                "where": @where_rpn
-            }
-        returns:
-            if table not exists: False
-            else: updated row count (int)
-        '''
-        table = self.meta.tables.get(table_name)
-        if table is None:
-            return False
-        with self.connect() as con:
-            result = con.execute(
-                _build_query(update(table), table, conditions),
-                **conditions['values']
-            )
-            return result.rowcount
-
-    def delete_rows(self, table_name, conditions):
-        ''' tableのデータをdelete
-        params:
-            table_name (str): target table name
-            conditions (dict): {
-                "where": @where_rpn
-            }
-        returns:
-            if table not exists: False
-            else: deleted row count (int)
-        '''
-        table = self.meta.tables.get(table_name)
-        if table is None:
-            return False
-        with self.connect() as con:
-            result = con.execute(
-                _build_query(delete(table), table, conditions)
-            )
-            return result.rowcount
