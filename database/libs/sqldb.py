@@ -2,29 +2,8 @@
 '''
 SQLite3 wrapping for REST API
 '''
-import sqlite3, re
-
-class Variable:
-    ''' 変数名として使える文字列か判定するクラス '''
-    class NameError(Exception):
-        def __str__(self):
-            return 'Invalid character specified for variable name.'
-    
-    # 変数名にはアルファベット, 数字, アンダーバーのみ使用可能
-    pattern = re.compile('^[a-zA-Z0-9_]+$')
-    
-    def __init__(self, variable_name):
-        # '*'は許可
-        if variable_name == '*':
-            self.name = variable_name
-        else:
-            if Variable.pattern.match(variable_name) is None:
-                raise Variable.NameError()
-            self.name = variable_name
-    
-    def __str__(self):
-        return self.name
-
+import sqlite3
+from .query import Variable, QueryBuilder
 
 class SqlDB:
     ''' SQLite wrapper class '''
@@ -133,8 +112,8 @@ class SqlDB:
                 'nullable': '',
                 'primary_key': ''
             }
-            cols += [str(Variable(column[0])) + ' ' + SqlDB.types[column[1]] + opt['nullable'] + opt['primary_key']]
-        self.cursor.execute('create table ' + str(Variable(table_name)) + ' (' + ','.join(cols) + ')')
+            cols += [Variable(column[0]).value + ' ' + SqlDB.types[column[1]] + opt['nullable'] + opt['primary_key']]
+        self.cursor.execute('create table ' + Variable(table_name).value + ' (' + ','.join(cols) + ')')
         self.tables += [table_name]
         return True
 
@@ -157,3 +136,95 @@ class SqlDB:
         self.cursor.execute('drop table ' + table_name)
         self.tables.remove(table_name)
         return True
+
+    # --- methods for rows managiment --- #
+    def get_rows(self, table_name, conditions={}):
+        ''' table内のデータselect
+        params:
+            table_name (str): target table name
+            conditions (dict): {
+                "select": ["*" or column_name, ...],
+                "where": {operator: [exp, ...], operator: {column_name: value}},
+                "order": {column: 'desc' or 'asc'}
+                "limit": 0 ~
+            }
+        returns:
+            if table not exists: False
+            else: list [
+                {column_name: column_value, ...},
+                ...
+            ]
+        '''
+        if not self.is_table_exists(table_name):
+            return False
+        query = QueryBuilder.build_select_query(conditions.get('select')) + ' from ' + table_name
+        where, binds = QueryBuilder.build_where_query(conditions.get('where'))
+        query += ' ' + where
+        query += ' ' + QueryBuilder.build_order_query(conditions.get('order'))
+        limit = conditions.get('limit')
+        if type(limit) is int:
+            query += ' limit ' + str(limit)
+        cursor = self.cursor.execute(query, binds)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def insert_rows(self, table_name, values):
+        ''' tableにデータinsert
+        params:
+            table_name (str): target table name
+            values (list): [
+                [column1_name, column2_name, ...],
+                [column1_value1, column2_value1, ...],
+                [column1_value2, column2_value2, ...],
+                ...
+            ]
+        returns:
+            if table not exists: False
+            else: inserted row count (int)
+        '''
+        if not self.is_table_exists(table_name):
+            return False
+        query, binds = QueryBuilder.build_insert_query(table_name, values)
+        cursor = self.cursor.executemany(query, binds)
+        self.connect.commit() # 変更を反映
+        return cursor.rowcount
+
+    def update_rows(self, table_name, conditions):
+        ''' tableのデータをupdate
+        params:
+            table_name (str): target table name
+            conditions (dict): {
+                "values": {column_name: column_value, ...},
+                "where": {operator: [exp, ...], operator: {column_name: value}}
+            }
+        returns:
+            if table not exists: False
+            else: updated row count (int)
+        '''
+        if not self.is_table_exists(table_name):
+            return False
+        query, binds = QueryBuilder.build_update_query(table_name, conditions.get('values'))
+        where, _binds = QueryBuilder.build_where_query(conditions.get('where'))
+        binds += _binds
+        result = self.cursor.execute(query + ' ' + where, binds)
+        self.connect.commit() # 変更を反映
+        return result.rowcount
+
+    def delete_rows(self, table_name, conditions):
+        ''' tableのデータをdelete
+        params:
+            table_name (str): target table name
+            conditions (dict): {
+                "where": {operator: [exp, ...], operator: {column_name: value}}
+            }
+        returns:
+            if table not exists: False
+            else: deleted row count (int)
+        '''
+        if not self.is_table_exists(table_name):
+            return False
+        where, binds = QueryBuilder.build_where_query(conditions.get('where'))
+        query = 'delete from ' + table_name + ' ' + where
+        print(query, binds)
+        result = self.cursor.execute(query, binds)
+        self.connect.commit() # 変更を反映
+        return result.rowcount

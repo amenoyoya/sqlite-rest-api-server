@@ -6,21 +6,6 @@
         ```bash
         $ pip install flask
         ```
-    - SQLAlchemy `1.3.3`
-        ```bash
-        $ pip install sqlalchemy
-        ```
-    - websocket-server `0.4`
-        ```bash
-        $ pip install websocket-server
-
-        # latest version update
-        $ pip install --upgrade git+https://github.com/Pithikos/python-websocket-server
-        ```
-    - websocket-server `0.56.0`
-        ```bash
-        $ pip install websocket-client
-        ```
 
 ***
 
@@ -36,7 +21,7 @@ see [database/README.md](./database/README.md)
     client => 'localhost:5000':
         'localhost:5000': SQLite操作APサーバー
     
-    => response time: 0.28 s
+    => response time: 0.28 s (in Windows)
     ```
 - サーバー3層構造
     ```python
@@ -44,12 +29,11 @@ see [database/README.md](./database/README.md)
         'localhost:4000': 前処理用APサーバー
         'localhost:5000': SQLite操作APサーバー
     
-    => response time: 1.28 s
+    => response time: 1.28 s (in Windows)
+    => response time: 0.04 s (in Ubuntu)
     ```
-- Websocket通信
-    ```python
-    http通信: client => 'localhost:4000'
-    websocket通信: 'localhost:4000' => 'localhost:5000'
-    
-    => レスポンス受信できず、実験失敗
-    ```
+
+#### Conclusion
+Windows環境のサーバーは遅い
+
+サーバーはLinux環境に限る

@@ -6,10 +6,6 @@
         ```bash
         $ pip install flask
         ```
-    - SQLAlchemy `1.3.3`
-        ```bash
-        $ pip install sqlalchemy
-        ```
 
 ***
 
@@ -72,7 +68,6 @@
                     { // @optional
                         "nullable": true/false,
                         "primary_key": true/false,
-                        "autoincrement": true/false
                     }
                 ],
                 ...
@@ -88,7 +83,11 @@
         ```
     - example:
         ```bash
-        curl -X POST -H 'Content-Type:application/javascript' -d '{"columns":[["id","int",{"primary_key":true,"autoincrement":true}],["user","str"]]}' http://localhost:5000/tables/hoge
+        curl -X POST -H 'Content-Type: application/json' -d '{
+            "columns": [
+                ["id", "int", {"primary_key":true}],
+                ["user","str"]
+            ]}' http://localhost:5000/tables/hoge
         ```
 - DELETE:
     - `DELETE /tables`
@@ -124,18 +123,17 @@
             "select": [ //@optional
                 "*" or "<column_name>"
             ],
-            "where": [ // @optional: 条件式の逆ポーランド記法配列
-                /* operators */
-                '<': lambda x, y: x < y, '<=': lambda x, y: x <= y,
-                '>': lambda x, y: x > y, '>=': lambda x, y: x >= y,
-                '=': lambda x, y: x == y, '!=': lambda x, y: x != y,
-                'and': lambda x, y: and_(x, y), 'or': lambda x, y: or_(x, y),
-                'like': lambda x, y: x.like(y), 'in': lambda x, y: tuple_(x).in_([(e,) for e in y]),
-            ],
-            "order_by": [ // @optional
-                ["asc" or "desc", "<column_name>"], ...
-            ],
-        "limit": 0～, // @optional
+            "where": { // @optional: 条件式のポーランド記法配列
+                /* operator:
+                    "<" | "<=" | ">" | ">=" | "=" | "!=" | "and" | "or" | "like"
+                */
+                "<operator>": ["<expression>", ...],
+                "<operator>": {"<column_name>": column_value, ...}
+            },
+            "order": { // @optional
+                "<column_name>": "asc" or "desc", ...
+            },
+            "limit": 0 ~, // @optional
         }
         response: {
             "status": 200,
@@ -153,14 +151,24 @@
     - example:
         ```bash
         # SELECT * FROM users WHERE id > 1 AND user LIKE "%admin%" ORDER BY id DESC LIMIT 5;
-        curl -X GET -H 'Content-Type:application/json' -d '{"select": ["*"], "where": ["id", 1, ">", "user", "%admin%", "like", "and"], "order_by": [["desc", "id"]], "limit": 5}' http://localhost:5000/tables/users/rows
+        curl -X GET -H 'Content-Type: application/json' -d '{
+            "select": ["*"],
+            "where": {
+                "and": {
+                    ">": {"id": 1},
+                    "like": {"user": "%admin%"}
+                }
+            },
+            "order": {"id": "desc"},
+            "limit": 5}' http://localhost:5000/tables/users/rows
         ```
 - POST:
     - `POST /tables/<table_name>/rows`
         ```javascript
         request: {
             "values": [
-                {"<column_value>": column_value, ...},
+                ["<column1_name>", "<column2_name>", ...],
+                ["<column1_val1>", "<column2_val1>", ...],
                 ...
             ]
         }
@@ -174,14 +182,23 @@
         ```
     - example:
         ```bash
-        curl -X POST -H 'Content-Type:application/javascript' -d '{"values":[{"user":"admin","password":"pass"},{"user":"hoge","password":"fuga"}]}' http://localhost:5000/tables/users/rows
+        # INSERT INTO users (user, password) VALUES (?, ?); | [["admin", "pass"], ["hoge", "fuga"]]
+        curl -X POST -H 'Content-Type:application/json' -d '{
+            "values":[
+                ["user", "password"],
+                ["admin", "pass"],
+                ["hoge", "fuga"]
+            ]}' http://localhost:5000/tables/users/rows
         ```
 - PUT:
   - `PUT /tables/<table_name>/rows`
     ```javascript
     request: {
-      "where": @optional where::RPN,
-      "values": {"<column_value>": column_value, ...}
+        "where": { // @optional
+            "<operator>": ["<expression>", ...],
+            "<operator>": {"<column_name>": column_value, ...},
+        },
+        "values": {"<column_value>": column_value, ...}
     }
     response: {
       "status": 200 or 400,
@@ -194,13 +211,22 @@
   - example:
     ```bash
     # UPDATE users SET user = "yoya" WHERE id = 1;
-    curl -X PUT -H 'Content-Type:application/javascript' -d '{"values":{"user":"yoya"},"where":["id",1,"="]}' http://localhost:5000/tables/users/rows
+    curl -X PUT -H 'Content-Type:application/json' -d '{
+        "values": {
+            "user": "yoya"
+        },
+        "where": {
+            "=": {"id": 1}
+        }' http://localhost:5000/tables/users/rows
     ```
 - DELETE:
   - `DELETE /tables/<table_name>/rows`
     ```javascript
     request: {
-      "where": @optional where::RPN,
+      "where": { // @optional
+            "<operator>": ["<expression>", ...],
+            "<operator>": {"<column_name>": column_value, ...},
+        }
     }
     response: {
       "status": 200 or 400,
@@ -213,5 +239,8 @@
   - example:
     ```bash
     # DELETE FROM users WHERE id <= 10;
-    curl -X DELETE -H 'Content-Type:application/javascript' -d '{"where":["id",10,"<="]}' http://localhost:5000/tables/users/rows
+    curl -X DELETE -H 'Content-Type:application/json' -d '{
+        "where": {
+            "<=": {"id", 10}
+        }' http://localhost:5000/tables/users/rows
     ```

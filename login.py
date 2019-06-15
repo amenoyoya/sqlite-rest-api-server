@@ -1,3 +1,4 @@
+# encoding: utf-8
 '''
 ログインAPIサーバー
 
@@ -22,6 +23,7 @@ from pprint import pprint
 # Flaskアプリケーション
 app = Flask(__name__)
 
+app.config['JSON_AS_ASCII'] = False # jsonifyでの日本語の文字化けを防ぐ
 # cookieを暗号化する秘密鍵
 app.config['SECRET_KEY'] = os.urandom(24)
 
@@ -76,7 +78,7 @@ def index():
     req = Request('http://localhost:5000/tables')
     try:
         with urlopen(req) as res:
-        return jres(200, json.load(res))
+            return jres(200, json.load(res))
     except HTTPError as err:
         return jres(err.code, err.reson)
     except URLError as err:
