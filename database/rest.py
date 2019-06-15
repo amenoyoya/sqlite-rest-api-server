@@ -1,9 +1,9 @@
 '''
-Databaseサーバー（REST API版）
+Databaseサーバー（REST API）
 '''
 
 from flask import g, Flask, request, jsonify
-from lib.db import Database
+from libs.sqldb import SqlDB
 import os, json
 
 # 使用するデータベース
@@ -12,6 +12,7 @@ DATABASE = os.path.join(os.path.dirname(__file__), 'database.sqlite3')
 # Flaskアプリケーション
 app = Flask(__name__)
 app.config.from_object(__name__)
+app.config['JSON_AS_ASCII'] = False # jsonifyでの日本語の文字化けを防ぐ
 app.config['migrated'] = False # migration実行フラグ
 
 def jres(status_code, content):
@@ -49,7 +50,7 @@ def migrate(db, migration):
 def get_db():
     ''' Databaseのconnectionを取得 '''
     if not hasattr(g, 'databse'):
-        g.database = Database(DATABASE)
+        g.database = SqlDB(DATABASE)
         # マイグレーションが実行されていない場合はmigrate
         if not app.config['migrated'] and migrate(g.database, os.path.join(os.path.dirname(__file__), 'migration.json')):
             app.config['migrated'] = True
