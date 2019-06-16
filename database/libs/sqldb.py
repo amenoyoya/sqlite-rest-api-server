@@ -1,6 +1,10 @@
 # encoding: utf-8
 '''
 SQLite3 wrapping for REST API
+
+Copyright (C) 2019 yoya(@amenoyoya). All rights reserved.
+GitHub: https://github.com/amenoyoya/sqlite-rest-api-server
+License: MIT License
 '''
 import sqlite3
 from .query import Variable, QueryBuilder

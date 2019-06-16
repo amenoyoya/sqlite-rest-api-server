@@ -1,7 +1,11 @@
+# encoding: utf-8
 '''
-Databaseサーバー（REST API）
-'''
+Database REST API Server
 
+Copyright (C) 2019 yoya(@amenoyoya). All rights reserved.
+GitHub: https://github.com/amenoyoya/sqlite-rest-api-server
+License: MIT License
+'''
 from flask import g, Flask, request, jsonify
 from libs.sqldb import SqlDB
 import os, json

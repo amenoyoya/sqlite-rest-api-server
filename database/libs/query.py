@@ -1,5 +1,12 @@
 # encoding: utf-8
+'''
+SQL QueryBuilder by RPN Library
 
+Copyright (C) 2019 yoya(@amenoyoya). All rights reserved.
+GitHub: https://github.com/amenoyoya/sqlite-rest-api-server
+        https://github.com/amenoyoya/pyrpn
+License: MIT License
+'''
 from .rpn import RPN, Value, Variable
 
 class QueryBuilder(RPN):

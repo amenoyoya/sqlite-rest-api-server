@@ -1,5 +1,10 @@
+# encoding: utf-8
 '''
 Websocket ラッパークラス
+
+Copyright (C) 2019 yoya(@amenoyoya). All rights reserved.
+GitHub: https://github.com/amenoyoya/sqlite-rest-api-server
+License: MIT License
 '''
 import logging
 from websocket_server import WebsocketServer as create_server
