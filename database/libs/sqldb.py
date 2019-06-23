@@ -232,3 +232,52 @@ class SqlDB:
         result = self.cursor.execute(query, binds)
         self.connect.commit() # 変更を反映
         return result.rowcount
+
+    def migrate(self, data):
+        ''' JSONデータからマイグレーション実行
+        params:
+            data (dict): {
+                "config": { # マイグレーション設定
+                    "recreate": true / false # データベースを再構築するか
+                },
+                "tables": { # 作成するテーブル
+                    "テーブル名": [
+                        ["カラム名", "カラム型", {
+                            "primary_key": true / false # optional: primary_keyにするか
+                        }],
+                        ...
+                    ],
+                    ...
+                },
+                "values": { # 挿入するデータ
+                    "テーブル名": [
+                        ["カラム1_カラム名", "カラム2_カラム名", ...],
+                        ["カラム1_データ", "カラム2_データ", ...],
+                        ...
+                    ],
+                    ...
+                }
+            }
+        return:
+            if succeeded to migrate: True
+            else: False
+        '''
+        config = data.get('config')
+        tables = data.get('tables')
+        values = data.get('values')
+        if config and config.get('recreate'):
+            # recreateフラグが立っているならテーブルを削除
+            self.drop_tables()
+        # table構築
+        if not isinstance(tables, dict):
+            return False
+        for table, columns in tables.items():
+            if self.is_table_exists(table):
+                continue
+            # 存在しないtableを構築し、データ流し込み
+            if self.create_table(table, columns) == False:
+                return False
+            rows = values.get(table) if isinstance(values, dict) else None
+            if rows and self.insert_rows(table, rows) == False:
+                return False
+        return True

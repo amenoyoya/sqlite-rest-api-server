@@ -6,7 +6,10 @@
 2. this file: ログインAPサーバー(localhost:4000)を起動
 3. curlコマンドでログイン
     ```
-    $ curl -c cookie -d 'username=admin' http://localhost:4000/login
+    $ curl -c cookie -d 'username=admin' -d 'password=adminadmin' http://localhost:4000/login
+
+    # リダイレクト有効なら 4. の手順は不要
+    $ curl -L -c cookie -d 'username=admin' -d 'password=adminadmin' http://localhost:4000/login
     ```
 4. ログイン後にDatabaseサーバーからtables情報取得
     ```
@@ -14,75 +17,81 @@
     # => http://localhost:4000 => GET http://localhost:5000/tables
     ```
 '''
-from flask import Flask, request, jsonify, session
+from database.libs.frasco import Frasco, Response
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 import os, json
-from pprint import pprint
+# from pprint import pprint
+
+# 認証ユーザークラス
+class AuthUser:
+    # 認証可能なユーザー
+    users = {
+        'user1': {
+            'username': 'admin', 'password': 'adminadmin'
+        },
+        'user2': {
+            'username': 'hoge', 'password': 'fugafuga'
+        }
+    }
+
+    def __init__(self, id):
+        self.id = id
+        self.username = AuthUser.users[id]['username']
+        self.password = AuthUser.users[id]['password']
+
+    # 認証処理
+    @staticmethod
+    def auth(data):
+        username = data.get('username')
+        password = data.get('password')
+        # 登録済みのユーザーか判定
+        for id, user in AuthUser.users.items():
+            if username == user['username'] and password == user['password']:
+                return AuthUser(id)
+
+    # セッション保存処理
+    @staticmethod
+    def save(user):
+        return user.id
+    
+    # セッション復元処理
+    @staticmethod
+    def load(session_id):
+        return AuthUser(session_id)
+
 
 # Flaskアプリケーション
-app = Flask(__name__)
+## 認証処理用のユーザークラスをAuthUserとする
+app = Frasco(__name__, User=AuthUser)
 
-app.config['JSON_AS_ASCII'] = False # jsonifyでの日本語の文字化けを防ぐ
-# cookieを暗号化する秘密鍵
-app.config['SECRET_KEY'] = os.urandom(24)
-
-def jres(status_code, content):
-    ''' ステータスコード付きでJsonレスポンス作成 '''
-    res = jsonify(content)
-    res.status_code = status_code
-    return res
-
-# 認証処理デコレータ
-def require_login(func):
-    def wrapper(*args, **kargs):
-        # セッションに username が保存されていればログイン済み
-        if session.get('username') is not None:
-            return func(*args, **kargs)
-        # ログインされていない場合はエラーレスポンスを返す
-        return jres(401, {
-            'message': 'Unauthorized'
-        })
-    return wrapper
-
-# ログイン処理
-@app.route('/login', methods=['POST'])
-def login():
-    # 認証
-    username = request.form.get('username')
-    if username == 'admin':
-        # セッションにユーザ名を保存
-        session['username'] = request.form['username']
-        return jres(200, {
-        'message': 'succeeded to login'
-        })
-    return jres(400, {
-        'message': 'invalid user'
-    })
-
-# ログアウト処理
-@app.route('/logout')
-def logout():
-    # セッションからusernameを取り出す
-    session.pop('username', None)
-    return jres(200, {
-        'message': 'succeeded to logout'
-    })
+# 認証処理API
+@app.auth('/login', '/logout', Response.text('ログアウトしました\n'))
+def login(user):
+    if user:
+        # succeeded to login => redirect to /
+        return Response.redirect('/')
+    # failed to login
+    return Response.text('認証エラー: ユーザー名かパスワードが違います\n', 400)
 
 # ルートパスアクセスは要認証
-@app.route('/', methods=['GET'])
-@require_login
+@app.get('/')
+@app.secret(Response.text('先にログインしてください: /login\n'))
 def index():
-    pprint(request.environ)
+    data = {'message': app.current_user.username + ' としてログイン中'}
+    # pprint(request.environ)
     # Databaseサーバーの tables API を叩く
     req = Request('http://localhost:5000/tables')
     try:
         with urlopen(req) as res:
-            return jres(200, json.load(res))
+            data.update(json.load(res))
+            return Response.json(data)
     except HTTPError as err:
-        return jres(err.code, err.reson)
+        data.update({'error': err.reason})
+        return Response.json(data, err.code)
     except URLError as err:
-        return jres(err.code, err.reson)
+        data.update({'error': err.reason})
+        return Response.json(data, err.code)
 
 # Flaskサーバー実行
 if __name__ == "__main__":

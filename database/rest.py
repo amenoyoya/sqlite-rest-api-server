@@ -6,165 +6,122 @@ Copyright (C) 2019 yoya(@amenoyoya). All rights reserved.
 GitHub: https://github.com/amenoyoya/sqlite-rest-api-server
 License: MIT License
 '''
-from flask import g, Flask, request, jsonify
+from libs.frasco import g, request, Frasco, Response
 from libs.sqldb import SqlDB
 import os, json
 
 # 使用するデータベース
 DATABASE = os.path.join(os.path.dirname(__file__), 'database.sqlite3')
+# 使用するマイグレーションファイル
+MIGRATION = os.path.join(os.path.dirname(__file__), 'migration.json')
 
 # Flaskアプリケーション
-app = Flask(__name__)
-app.config.from_object(__name__)
-app.config['JSON_AS_ASCII'] = False # jsonifyでの日本語の文字化けを防ぐ
+app = Frasco(__name__)
 app.config['migrated'] = False # migration実行フラグ
-
-def jres(status_code, content):
-    ''' ステータスコード付きでJsonレスポンス作成 '''
-    res = jsonify(content)
-    res.status_code = status_code
-    return res
-
-def migrate(db, migration):
-    ''' マイグレーション用JSONファイルからデータベース構築 '''
-    if not os.path.exists(migration):
-        return False
-    with open(migration, 'rb') as f:
-        data = json.load(f)
-    config = data.get('config')
-    tables = data.get('tables')
-    values = data.get('values')
-    if config and config.get('recreate'):
-        # recreateフラグが立っているならテーブルを削除
-        db.drop_tables()
-    # table構築
-    if not isinstance(tables, dict):
-        return False
-    for table, columns in tables.items():
-        if db.is_table_exists(table):
-            continue
-        # 存在しないtableを構築し、データ流し込み
-        if db.create_table(table, columns) == False:
-            return False
-        rows = values.get(table) if isinstance(values, dict) else None
-        if rows and db.insert_rows(table, rows) == False:
-            return False
-    return True
 
 def get_db():
     ''' Databaseのconnectionを取得 '''
     if not hasattr(g, 'databse'):
         g.database = SqlDB(DATABASE)
         # マイグレーションが実行されていない場合はmigrate
-        if not app.config['migrated'] and migrate(g.database, os.path.join(os.path.dirname(__file__), 'migration.json')):
-            app.config['migrated'] = True
+        if not app.config['migrated'] and os.path.exists(MIGRATION):
+            with open(MIGRATION, 'rb') as f:
+                if g.database.migrate(json.load(f)):
+                    app.config['migrated'] = True # マイグレーション実行済みに
     return g.database
 
-
 # Tables API 定義
-@app.route('/tables', methods=['GET'])
+@app.get('/tables')
 def get_tables():
     ''' table列挙 '''
-    db = get_db()
-    return jres(200, db.get_tables())
+    return Response.json(get_db().get_tables())
 
-@app.route('/tables/<string:name>', methods=['GET'])
+@app.get('/tables/<string:name>')
 def get_table(name):
     ''' tableスキーマ取得 '''
-    db = get_db()
-    res = db.get_table(name)
+    res = get_db().get_table(name)
     if res == False:
-        return jres(400, {
+        return Response.json({
             'message': f'table "{name}" not exists'
-        })
-    return jres(200, res)
+        }, 400)
+    return Response.json(res)
 
-@app.route('/tables/<string:name>', methods=['POST'])
+@app.post('/tables/<string:name>')
 def create_table(name):
     ''' table作成 '''
-    db = get_db()
-    if db.create_table(name, request.json['columns']):
-        return jres(201, {
+    if get_db().create_table(name, request.json['columns']):
+        return Response.json({
             'message': f'table "{name}" created'
-        })
-    return jres(400, {
+        }, 201)
+    return Response.json({
         'message': f'table "{name}" already exists'
-    })
+    }, 400)
 
-@app.route('/tables', methods=['DELETE'])
+@app.delete('/tables')
 def drop_tables():
     ''' table全削除 '''
-    db = get_db()
-    db.drop_tables()
-    return jres(200, {
+    get_db().drop_tables()
+    return Response.json({
         'message': 'all tables deleted'
     })
 
-@app.route('/tables/<string:name>', methods=['DELETE'])
+@app.delete('/tables/<string:name>')
 def drop_table(name):
     ''' table削除 '''
-    db = get_db()
-    if db.drop_table(name):
-        return jres(200, {
+    if get_db().drop_table(name):
+        return Response.json({
             'message': f'table "{name}" deleted'
         })
-    return jres(400, {
+    return Response.json({
         'message': f'table "{name}" not exists'
-    })
-
+    }, 400)
 
 # Rows API 定義
-@app.route('/tables/<string:name>/rows', methods=['GET'])
+@app.get('/tables/<string:name>/rows')
 def get_rows(name):
     ''' tableにデータinsert '''
-    db = get_db()
-    res = db.get_rows(name, {} if request.json is None else request.json)
+    res = get_db().get_rows(name, {} if request.json is None else request.json)
     if res == False:
-        return jres(400, {
+        return Response.json({
             'message': f'table "{name}" not exists'
-        })
-    return jres(200, res)
+        }, 400)
+    return Response.json(res)
 
-@app.route('/tables/<string:name>/rows', methods=['POST'])
+@app.post('/tables/<string:name>/rows')
 def insert_rows(name):
     ''' tableにデータinsert '''
-    db = get_db()
-    res = db.insert_rows(name, request.json['values'])
+    res = get_db().insert_rows(name, request.json['values'])
     if res == False:
-        return jres(400, {
+        return Response.json({
             'message': f'table "{name}" not exists'
-        })
-    return jres(201, {
+        }, 400)
+    return Response.json({
         'message': f'{res} rows inserted into table "{name}"'
-    })
+    }, 201)
 
-
-@app.route('/tables/<string:name>/rows', methods=['PUT'])
+@app.put('/tables/<string:name>/rows')
 def update_rows(name):
     ''' tableのデータをupdate '''
-    db = get_db()
-    res = db.update_rows(name, request.json)
+    res = get_db().update_rows(name, request.json)
     if res == False:
-        return jres(400, {
+        return Response.json({
             'message': f'table "{name}" not exists'
-        })
-    return jres(200, {
+        }, 400)
+    return Response.json({
         'message': f'{res} rows updated in table "{name}"'
     })
 
-@app.route('/tables/<string:name>/rows', methods=['DELETE'])
+@app.delete('/tables/<string:name>/rows')
 def delete_rows(name):
     ''' tableのデータをdelete '''
-    db = get_db()
-    res = db.delete_rows(name, request.json)
+    res = get_db().delete_rows(name, request.json)
     if res == False:
-        return jres(400, {
+        return Response.json({
             'message': f'table "{name}" not exists'
-        })
-    return jres(200, {
+        }, 400)
+    return Response.json({
         'message': f'{res} rows deleted from table "{name}"'
     })
-
 
 # Flaskサーバー実行
 if __name__ == "__main__":
