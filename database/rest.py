@@ -6,8 +6,8 @@ Copyright (C) 2019 yoya(@amenoyoya). All rights reserved.
 GitHub: https://github.com/amenoyoya/sqlite-rest-api-server
 License: MIT License
 '''
-from libs.frasco import g, request, Frasco, Response
-from libs.sqldb import SqlDB
+from pylib.web.frasco import g, request, Frasco, Response
+from pylib.sqldb import SqlDB
 import os, json
 
 # 使用するデータベース

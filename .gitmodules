@@ -1,0 +1,3 @@
+[submodule "database/pylib"]
+	path = database/pylib
+	url = https://github.com/amenoyoya/pylib.git
